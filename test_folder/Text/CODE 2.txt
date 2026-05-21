@@ -1,0 +1,190 @@
+import { useState } from 'react';
+import { Header } from '@/components/layout/Header';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { StatCard } from '@/components/dashboard/StatCard';
+import { BudgetProgress } from '@/components/dashboard/BudgetProgress';
+import { SpendingChart } from '@/components/dashboard/SpendingChart';
+import { ExpenseList } from '@/components/dashboard/ExpenseList';
+import { ReceiptUpload } from '@/components/receipt/ReceiptUpload';
+import { CameraCapture } from '@/components/receipt/CameraCapture';
+import { QuickActions } from '@/components/dashboard/QuickActions';
+import { AlertBanner } from '@/components/dashboard/AlertBanner';
+import { mockBudgets, getRecentExpenses, getTotalSpending } from '@/data/mockData';
+import { DollarSign, Receipt, TrendingUp, Calendar } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+const Index = () => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
+
+  const totalSpending = getTotalSpending();
+  const recentExpenses = getRecentExpenses(5);
+  const totalBudget = mockBudgets.find(b => b.category === 'total');
+
+  const processReceipt = (source: string) => {
+    setIsProcessing(true);
+    
+    // Simulate OCR processing
+    setTimeout(() => {
+      setIsProcessing(false);
+      setUploadDialogOpen(false);
+      toast({
+        title: "Receipt processed!",
+        description: "AI extracted: Whole Foods - $127.84 (Food & Dining)",
+      });
+    }, 3000);
+  };
+
+  const handleReceiptUpload = async (file: File) => {
+    processReceipt('file');
+  };
+
+  const handleCameraCapture = (imageData: string) => {
+    setCameraOpen(false);
+    setUploadDialogOpen(true);
+    processReceipt('camera');
+  };
+
+  const handleOpenCamera = () => {
+    setUploadDialogOpen(false);
+    setCameraOpen(true);
+  };
+
+  const handleExport = () => {
+    toast({
+      title: "Export started",
+      description: "Your expense report is being generated.",
+    });
+  };
+
+  return (
+    <div className="flex min-h-screen bg-background">
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      
+      <div className="flex flex-1 flex-col">
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+        
+        <main className="flex-1 overflow-auto p-4 md:p-6">
+          <div className="mx-auto max-w-7xl space-y-6">
+            {/* Page Title */}
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+                Welcome back, Alex
+              </h1>
+              <p className="text-muted-foreground">
+                Here's your expense overview for January 2026
+              </p>
+            </div>
+
+            {/* Alert Banner */}
+            <AlertBanner />
+
+            {/* Stats Grid */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="Total Spent"
+                value={`$${totalSpending.toFixed(2)}`}
+                subtitle="This month"
+                icon={<DollarSign className="h-5 w-5" />}
+                trend={{ value: 12, isPositive: false }}
+                glowing
+              />
+              <StatCard
+                title="Transactions"
+                value={recentExpenses.length.toString()}
+                subtitle="This month"
+                icon={<Receipt className="h-5 w-5" />}
+              />
+              <StatCard
+                title="Avg. Daily"
+                value={`$${(totalSpending / 5).toFixed(2)}`}
+                subtitle="Per day"
+                icon={<TrendingUp className="h-5 w-5" />}
+                trend={{ value: 8, isPositive: true }}
+              />
+              <StatCard
+                title="Days Left"
+                value="26"
+                subtitle="In budget period"
+                icon={<Calendar className="h-5 w-5" />}
+              />
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* Left Column - Chart & Budget */}
+              <div className="space-y-6 lg:col-span-2">
+                <SpendingChart />
+                
+                {/* Budget Progress */}
+                <div className="glass-card rounded-xl p-6">
+                  <h3 className="mb-6 text-lg font-semibold">Budget Status</h3>
+                  <div className="space-y-6">
+                    {mockBudgets.slice(0, 5).map((budget) => (
+                      <BudgetProgress key={budget.id} budget={budget} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Quick Actions & Recent */}
+              <div className="space-y-6">
+                <QuickActions 
+                  onScanReceipt={() => setUploadDialogOpen(true)}
+                  onAddManual={() => toast({ title: "Coming soon", description: "Manual entry will be available shortly." })}
+                  onExport={handleExport}
+                />
+                
+                {/* Recent Expenses */}
+                <div className="glass-card rounded-xl p-6">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Recent Expenses</h3>
+                    <button className="text-sm text-primary hover:underline">
+                      View all
+                    </button>
+                  </div>
+                  <ExpenseList expenses={recentExpenses} compact />
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Receipt Upload Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Scan Receipt</DialogTitle>
+          </DialogHeader>
+          <ReceiptUpload 
+            onUpload={handleReceiptUpload}
+            onCameraCapture={handleCameraCapture}
+            onOpenCamera={handleOpenCamera}
+            isProcessing={isProcessing}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Camera Capture Full Screen */}
+      {cameraOpen && (
+        <CameraCapture 
+          onCapture={handleCameraCapture}
+          onClose={() => setCameraOpen(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default Index;
